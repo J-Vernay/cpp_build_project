@@ -15,7 +15,7 @@ endif()
 #### LIBRARY ####
 
 add_library(cpp_build_project
-  lib_sources/build_project.cpp
+  lib_sources/parse_args_get_tools.cpp
 ) 
 target_include_directories(cpp_build_project PUBLIC include)
 
