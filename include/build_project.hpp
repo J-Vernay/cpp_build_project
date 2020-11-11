@@ -67,7 +67,7 @@ public:
     only_interface
   };
   // Implicit conversion "path -> input(path, kind::source)"
-  project_file(path path, kind kind = kind::source);
+  project_file(path path, kind kind = kind::source) : _kind(kind), _path(move(path)) {}
 
   // Implicit taking of any path-like type (string_view, char const*, etc)
   // needed for inputting string literals in initializer_list<project_file>
@@ -77,8 +77,12 @@ public:
   project_file(PathConvertible&& p, kind kind = kind::source)
       : project_file(path{std::forward<PathConvertible>(p)}, kind) {}
 
-  auto get_path() const noexcept -> path const&;
-  auto get_kind() const noexcept -> kind;
+  auto get_path() const noexcept -> path const& { return _path; }
+  auto get_kind() const noexcept -> kind { return _kind; }
+
+private:
+  kind _kind;
+  path _path;
 };
 
 /// Helper functions for better syntax.
@@ -115,14 +119,13 @@ public:
 
   // TODO: Virtual constructors for preprocessor_args and flags
 
+  /// Platform-defined renaming of filenames depending on file kind.
+  /// For instance: `get_actual_filepath(dynlib("path/to/myproject")) -> "path/to/libmyproject.so"
+  virtual auto get_actual_filepath(project_file const& f) const -> path = 0;
+
   virtual ~compiler_interface() noexcept = default;
 
 private:
-  /// Platform-defined renaming of filenames depending on the file type
-  /// For instance `rename_as_dynlib("path/to/myproject") -> "path/to/libmyproject.so"`
-  virtual auto rename_as_archive(path p) const noexcept -> path = 0;
-  virtual auto rename_as_dynlib(path p) const noexcept -> path = 0;
-  virtual auto rename_as_program(path p) const noexcept -> path = 0;
 };
 
 } // namespace build_project

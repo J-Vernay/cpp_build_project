@@ -28,7 +28,7 @@ target_include_directories(cpp_build_project PUBLIC include)
 #### EXAMPLES ####
 
 add_executable(example_one_file_builder
-  examples/one_file/__cppbuild__.cpp
+  examples/one_file/one_file.build.cpp
 )
 
 target_link_libraries(example_one_file_builder PRIVATE cpp_build_project)
