@@ -1,14 +1,17 @@
 
 #include <build_project.hpp>
 
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 
 using namespace std;
+using namespace filesystem;
 
 namespace build_project {
 
 static void print_help(ostream& out, char const* program_name) {
+
   out << quoted(program_name) << " was generated using <build_project.hpp>.\n"
       << "[General]\n"
       << "\t " << program_name << " help\n"
@@ -34,12 +37,21 @@ static void print_help(ostream& out, char const* program_name) {
 
 auto parse_args_get_tools(int argc, char const* const* argv, string_view info_message)
     -> tools {
+
   auto const program_name = argv[0];
 
   if (argc == 1) { // by default, build natively
     char const* args[] = {program_name, "host=:", nullptr};
     return parse_args_get_tools(2, args, info_message);
   }
+
+  // if there is no __cppbuild__.cpp in the current working directory
+  if (not is_regular_file(current_path() / "__cppbuild__.cpp"))
+    cout << "== WARNING ==\n"
+         << "No __cppbuild__.cpp in the current working directory:\n"
+         << "Have you launched this program from the project root directory?\n"
+         << "=============" << endl; // flushing so it is printed even if terminate() is called (i.e. uncaught exception)
+
   // argc > 1
   string_view const first_arg = argv[1];
   if (first_arg == "help") {
