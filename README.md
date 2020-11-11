@@ -22,6 +22,21 @@ This file describes a C++ program, containing a `main(int argc, char** argv)` en
 After compilation of this file, a program is created, named `build_project`.
 By executing this program, the project is built.
 
+Such a program would be:
+```cpp
+#include <build_project.hpp>
+using namespace build_project;
+
+int main(int argc, char** argv) {
+  auto [native, host] = parse_args_get_tools(argc, argv);
+  
+  auto mylib = host->create(dynlib("mylib"), {"src/lib.cpp", "src/lib2.cpp"});
+  host->create(program("tests"), {"tests/main.cpp", mylib});
+  
+  return 0;
+}
+```
+
 The execution of `build_project` may modify the content of a `__cppcache__` directory.
 This directory is used for incremental building, such as storing object files between builds.
 Deleting the `__cppcache__` directory will effectively trigger a complete rebuild.

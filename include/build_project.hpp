@@ -20,6 +20,7 @@ class compiler_interface;
 
 // Common using declarations
 using std::initializer_list;
+using std::move;
 using std::size_t;
 using std::string_view;
 using std::unique_ptr;
@@ -46,25 +47,50 @@ enum class language {
   c99,
   c11,
   c17,
+  c_latest,
   cpp98,
   cpp03,
   cpp11,
   cpp14,
   cpp17,
-  c_latest = c17,
-  cpp_latest = cpp17
+  cpp20,
+  cpp_latest
 };
+
+class project_file {
+public:
+  enum class kind {
+    source,
+    archive,
+    dynlib,
+    program,
+    only_interface
+  };
+  // Implicit conversion "path -> input(path, kind::source)"
+  project_file(path path, kind kind = kind::source);
+
+  // Implicit taking of any path-like type (string_view, char const*, etc)
+  // needed for inputting string literals in initializer_list<project_file>
+  template <typename PathConvertible,
+            typename = std::enable_if_t< // TODO: replace SFINAE with C++20 concepts
+                std::is_convertible_v<PathConvertible, path>>>
+  project_file(PathConvertible&& p, kind kind = kind::source)
+      : project_file(path{std::forward<PathConvertible>(p)}, kind) {}
+
+  auto get_path() const noexcept -> path const&;
+  auto get_kind() const noexcept -> kind;
+};
+
+/// Helper functions for better syntax.
+inline auto archive(path p) -> project_file { return project_file(move(p), project_file::kind::archive); }
+inline auto dynlib(path p) -> project_file { return project_file(move(p), project_file::kind::dynlib); }
+inline auto program(path p) -> project_file { return project_file(move(p), project_file::kind::program); }
+inline auto only_interface(path p) -> project_file { return project_file(move(p), project_file::kind::only_interface); }
 
 class compiler_interface {
 public:
   // TODO: Specify how is formatted the identifier (normalized target triplet?)
   virtual auto platform_identifier() const noexcept -> string_view = 0;
-
-  /// Platform-defined renaming of filenames depending on the file type
-  /// For instance `dynlib("path/to/myproject") -> "path/to/libmyproject.so"`
-  virtual auto archive(path p) const noexcept -> path = 0;
-  virtual auto dynlib(path p) const noexcept -> path = 0;
-  virtual auto program(path p) const noexcept -> path = 0;
 
   /// Main function to build the project.
   /// `dst` must have been generated with archive(), dynlib() or program().
@@ -73,16 +99,14 @@ public:
   /// - source, archive and dynlib files if `dst` is a dynlib or a program
   /// All paths must be relative and inside the current directory.
   // TODO: Maybe virtual so it may be overridden?
-  // TODO: Return paths to module interface units?
-  // TODO: Should module interface units be compiled to objects and inserted inside archive and dynlib?
-  void create(path dst,
-              path const* inputs_data, size_t inputs_size, // TODO: Use C++20 std::span or equivalent
+  void create(project_file const& dst,
+              project_file const* inputs_data, size_t inputs_size, // TODO: Use C++20 std::span or equivalent
               language lang = language::cpp_latest,
               preprocessor_args const* pp_args = nullptr,
               flags const* flags = nullptr);
 
-  void create(path dst,
-              initializer_list<path> inputs,
+  void create(project_file const& dst,
+              initializer_list<project_file> inputs,
               language lang = language::cpp_latest,
               preprocessor_args const* pp_args = nullptr,
               flags const* flags = nullptr) {
@@ -94,10 +118,11 @@ public:
   virtual ~compiler_interface() noexcept = default;
 
 private:
-  // TODO: maybe make these public?
-  virtual auto is_archive(path const& p) const noexcept -> bool = 0;
-  virtual auto is_dynlib(path const& p) const noexcept -> bool = 0;
-  virtual auto is_program(path const& p) const noexcept -> bool = 0;
+  /// Platform-defined renaming of filenames depending on the file type
+  /// For instance `rename_as_dynlib("path/to/myproject") -> "path/to/libmyproject.so"`
+  virtual auto rename_as_archive(path p) const noexcept -> path = 0;
+  virtual auto rename_as_dynlib(path p) const noexcept -> path = 0;
+  virtual auto rename_as_program(path p) const noexcept -> path = 0;
 };
 
 } // namespace build_project
